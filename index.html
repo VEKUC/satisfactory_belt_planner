@@ -1,0 +1,616 @@
+﻿<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Satisfactory Balancer — demo</title>
+
+<!-- ========== STYLES ========== -->
+<style>
+:root{
+  --bg:#1e1e2f; --panel:#2c2c3a; --accent:#ff8800; --muted:#9aa0a6;
+  --glass: rgba(255,255,255,0.04);
+}
+*{box-sizing:border-box}
+body{
+  margin:0;font-family:Inter, "Segoe UI", Roboto, sans-serif;background:var(--bg);
+  color:#fff;-webkit-font-smoothing:antialiased;
+  background-image: url('https://www.transparenttextures.com/patterns/black-felt.png');
+}
+/* header */
+.header{
+  display:flex;align-items:center;justify-content:space-between;padding:12px 18px;
+  background: linear-gradient(90deg,#ffb374,#cc6a00);
+  gap:12px;
+}
+.logo{display:flex;align-items:center;gap:12px}
+.logo .icon{width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#ffd8a8,#ff8a00);display:flex;align-items:center;justify-content:center;color:#111;font-weight:800;box-shadow:0 6px 18px rgba(0,0,0,0.35)}
+.logo .title{font-weight:700}
+.lang-flag{cursor:pointer;padding:6px 8px;border-radius:6px;background:rgba(255,255,255,0.06)}
+
+/* tabs */
+.tabs{display:flex;background:var(--panel)}
+.tab{flex:1;padding:12px;text-align:center;cursor:pointer;border-bottom:2px solid transparent;transition:all .28s;user-select:none}
+.tab:hover{background:rgba(255,255,255,0.02)}
+.tab.active{border-bottom:3px solid var(--accent);font-weight:700; transform:translateY(-2px)}
+
+/* layout */
+.main{display:flex;gap:18px;padding:18px}
+.sidebar{width:360px;background:var(--panel);padding:16px;border-radius:10px;border:1px solid rgba(255,136,0,0.06)}
+.content{flex:1;background:var(--panel);padding:16px;border-radius:10px;display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:flex-start;color:var(--muted)}
+.field{margin-bottom:12px}
+label{display:block;font-size:13px;color:#e6e6e6;margin-bottom:8px}
+input[type=number], select{width:100%;padding:8px;border-radius:8px;background:#11171a;border:1px solid #333;color:#fff}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{opacity:0.6}
+.small{font-size:13px;color:var(--muted)}
+
+/* columns */
+.two{display:flex;gap:12px}
+.col{flex:1;background:#0f1316;padding:10px;border-radius:8px;border:1px solid #222}
+.col .list{margin-top:8px;display:flex;flex-direction:column;gap:8px;max-height:260px;overflow:auto;padding-right:6px}
+.col .row{display:flex;gap:8px;align-items:center}
+.col .row .idx{width:30px;color:#8f9aa1}
+.col input{flex:1;padding:8px;border-radius:6px}
+
+/* diagram */
+.diagram{width:100%;height:340px;border-radius:8px;border:1px dashed rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center;color:var(--muted);position:relative;overflow:auto;background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent)}
+.diagram svg{display:block;margin:0 auto;} /* Added for centering */
+.remainder-tag{position:absolute;right:14px;top:14px;background:rgba(0,0,0,0.5);padding:6px 10px;border-radius:8px;border:1px solid rgba(255,136,0,0.12);font-size:13px;color:#fff}
+
+/* status & buttons */
+.status{margin-top:8px}
+.warning{color:#ffb84d}
+.error{color:#ff6b6b}
+.controls{display:flex;gap:8px;margin-top:12px}
+.btn{background:var(--accent);color:#111;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;box-shadow:0 6px 14px rgba(255,136,0,0.08)}
+.vekuclabel{font-size:12px;color:rgba(255,255,255,0.45);margin-top:14px}
+
+/* banner */
+.banner{width:100%;height:90px;background:linear-gradient(90deg,#111 #222);border-radius:8px;border:1px solid rgba(255,255,255,0.03);display:flex;align-items:center;justify-content:center;margin-top:14px;color:var(--muted)}
+
+/* small misc */
+.note{font-size:13px;color:var(--muted);margin-top:8px}
+.footer{padding:14px;text-align:center;color:var(--muted);font-size:13px}
+
+/* animation for tab content sliding */
+.slide-enter{animation:slideIn .28s ease-out}
+@keyframes slideIn{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:none}}
+
+@media (max-width:920px){
+  .main{flex-direction:column}
+  .sidebar{width:100%}
+}
+</style>
+</head>
+<body>
+<!-- HEADER -->
+<div class="header" role="banner">
+  <div class="logo">
+    <div class="icon">SV</div>
+    <div class="title">Satisfactory Planner <span style="font-weight:400;margin-left:6px;color:#e9e5df;font-size:13px" id="sub-title">Распределение</span></div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center">
+    <div class="lang-flag" id="langFlag" title="Переключить язык">🇷🇺</div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs" role="tablist" aria-label="Вкладки">
+  <div class="tab" id="tab-balance" role="tab">Балансировка</div>
+  <div class="tab active" id="tab-dist" role="tab">Распределение</div>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="main">
+  <aside class="sidebar" role="region" aria-label="Панель управления">
+    <div class="field">
+      <label for="belt-select">Тип ленты</label>
+      <select id="belt-select" aria-label="Выбор типа ленты">
+        <option value="60">MK1 - 60</option>
+        <option value="120">MK2 - 120</option>
+        <option value="270">MK3 - 270</option>
+        <option value="480" selected>MK4 - 480</option>
+        <option value="780">MK5 - 780</option>
+        <option value="1200">MK6 - 1200</option>
+      </select>
+    </div>
+
+    <div class="two">
+      <div class="col" aria-label="Входы">
+        <label>Кол-во входов</label>
+        <input id="in-count" type="number" value="2" min="0" aria-label="Количество входов">
+        <div class="list" id="inputs-container" aria-live="polite"></div>
+      </div>
+
+      <div class="col" aria-label="Выходы">
+        <label>Кол-во выходов</label>
+        <input id="out-count" type="number" value="2" min="0" aria-label="Количество выходов">
+        <div class="list" id="outputs-container" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <div class="status">
+      <div class="warning" id="warning" style="display:none"></div>
+      <div class="error" id="error" style="display:none"></div>
+    </div>
+
+    <div class="controls" role="group" aria-label="Кнопки сохранения">
+      <button id="save-png" class="btn">Сохранить PNG</button>
+      <button id="save-txt" class="btn">Сохранить TXT</button>
+      <button id="save-svg" class="btn">Сохранить SVG</button>
+    </div>
+
+    <div class="vekuclabel">VEKUC</div>
+  </aside>
+
+  <main class="content" role="main">
+    <div class="diagram slide-enter" id="diagram" aria-live="polite">
+      <svg id="diagram-svg" style="height:100%;"></svg>
+      <div class="remainder-tag" id="remainder" style="display:none">Ост: 0</div>
+    </div>
+
+    <div class="note" id="hint">Подсказка: зажмите <strong>Ctrl</strong> и кликните поле ввода — затем введите число, чтобы применить его ко всему столбцу.</div>
+
+    <div class="banner" id="ad-banner">Сайт сделан 100 БЕЗ рекламы :)))</div>
+
+    <div class="footer">Работает на Github pages, сделано VEKUC</div>
+  </main>
+</div>
+
+<!-- ========== SCRIPT ========== -->
+<script>
+/*
+  Static front-end engine:
+  - dynamic fields for inputs/outputs
+  - default fills equal to chosen belt MK capacity
+  - ctrl+click to set ctrl-mode for a field: typing value applies to whole column
+  - distribution: sum inputs, check capacities, distribute to outputs according to their required rates using a manifold design (merger tree for inputs, splitter chain for outputs), compute remainder
+  - mark remainder ("Ост") and show warning or error
+  - multilingual (ru/en toggle)
+  - animated tab switch
+  - realtime scheme visualization using SVG for distribution tab
+*/
+
+/* ---------- Elements ---------- */
+const beltSelect = document.getElementById('belt-select');
+const inCount = document.getElementById('in-count');
+const outCount = document.getElementById('out-count');
+const inputsContainer = document.getElementById('inputs-container');
+const outputsContainer = document.getElementById('outputs-container');
+const warningEl = document.getElementById('warning');
+const errorEl = document.getElementById('error');
+const remainderTag = document.getElementById('remainder');
+const diagram = document.getElementById('diagram');
+const diagramSvg = document.getElementById('diagram-svg');
+
+const langFlag = document.getElementById('langFlag');
+const hint = document.getElementById('hint');
+
+const tabBalance = document.getElementById('tab-balance');
+const tabDist = document.getElementById('tab-dist');
+
+const savePNG = document.getElementById('save-png');
+const saveTXT = document.getElementById('save-txt');
+const saveSVG = document.getElementById('save-svg');
+
+let ctrlPressed = false;
+let lang = 'ru';
+
+const svgNS = 'http://www.w3.org/2000/svg';
+
+/* ---------- translations ---------- */
+const texts = {
+  ru: {
+    title: 'Распределение',
+    hint: 'Подсказка: зажмите Ctrl и кликните поле ввода — затем введите число, чтобы применить его ко всему столбцу.',
+    savePNG: 'Сохранить PNG', saveTXT: 'Сохранить TXT', saveSVG: 'Сохранить SVG',
+    errorInsufficient: 'Ошибка: входная пропускная способность меньше требуемой для выходов',
+    errorExceedCap: 'Ошибка: индивидуальная скорость превышает пропускную способность ленты',
+    warningExceedTotalCap: 'Предупреждение: общий вход превышает пропускную способность ленты, поток будет ограничен',
+    remainderLabel: 'Остаток от распределения',
+    diagramInsufficient: 'Ошибка: недостаточно входной пропускной способности',
+    diagramSetOut: 'Укажите количество выходов'
+  },
+  en: {
+    title:'Distribution',
+    hint:'Tip: hold Ctrl and click an input — then type a number to apply it to the whole column.',
+    savePNG:'Save PNG', saveTXT:'Save TXT', saveSVG:'Save SVG',
+    errorInsufficient: 'Error: inputs capacity less than required outputs',
+    errorExceedCap: 'Error: individual rate exceeds belt capacity',
+    warningExceedTotalCap: 'Warning: total input exceeds belt capacity, throughput will be limited',
+    remainderLabel: 'Distribution remainder',
+    diagramInsufficient: 'Error: insufficient input capacity',
+    diagramSetOut: 'Set number of outputs'
+  }
+};
+
+/* ---------- helpers ---------- */
+function t(k){return texts[lang][k] || k}
+
+/* create list of numeric inputs */
+function createList(container, count){
+  container.innerHTML = '';
+  const cap = Number(beltSelect.value) || 0;
+  for(let i=0;i<count;i++){
+    const row = document.createElement('div'); row.className='row';
+    const idx = document.createElement('div'); idx.className='idx'; idx.textContent=(i+1)+'.';
+    const inp = document.createElement('input'); inp.type='number'; inp.min='0'; inp.value = cap; inp.className='col-input';
+    inp.dataset.idx = i;
+    inp.addEventListener('focus', ()=>{ if(ctrlPressed) inp.dataset.ctrlmode = '1'; else delete inp.dataset.ctrlmode; });
+    inp.addEventListener('input', ()=>{ if(inp.dataset.ctrlmode==='1'){ const val = inp.value; container.querySelectorAll('input').forEach(i2=>{ if(i2!==inp) i2.value = val; }); } validateAndRender(); });
+    row.appendChild(idx); row.appendChild(inp); container.appendChild(row);
+  }
+}
+
+/* sum container */
+function getSum(container){
+  const inputs = container.querySelectorAll('input');
+  let sum = 0;
+  inputs.forEach(i=>{
+    const s = String(i.value||'0').trim();
+    let num = 0;
+    for(let ch of s){
+      if(ch>='0' && ch<='9') { num = num*10 + (ch.charCodeAt(0)-48); }
+    }
+    sum += num;
+  });
+  return sum;
+}
+
+/* build merger tree */
+function buildMergerTree(inputRates) {
+  const inputNodes = inputRates.map((rate, i) => ({type: 'input', rate, id: i+1}));
+  function build(nodes) {
+    if (nodes.length === 0) return null;
+    if (nodes.length === 1) return nodes[0];
+    const groups = [];
+    const groupSize = Math.ceil(nodes.length / 3);
+    for (let g = 0; g < 3; g++) {
+      const start = g * groupSize;
+      if (start >= nodes.length) break;
+      const end = Math.min(start + groupSize, nodes.length);
+      const subgroup = nodes.slice(start, end);
+      if (subgroup.length > 0) groups.push(build(subgroup));
+    }
+    const rate = groups.reduce((a, g) => a + g.rate, 0);
+    return {type: 'merger', children: groups, rate};
+  }
+  return build(inputNodes);
+}
+
+/* assign positions to tree nodes */
+function assignPositions(node) {
+  if (node.type === 'input') {
+    node.x = 50;
+    return 50; // span
+  }
+  let y = 0;
+  const gap = 50;
+  const childSpans = node.children.map(child => assignPositions(child));
+  node.children.forEach((child, i) => {
+    child.y = y + childSpans[i] / 2;
+    y += childSpans[i] + gap;
+  });
+  const span = y - gap;
+  node.y = node.children.reduce((a, c) => a + c.y, 0) / node.children.length;
+  node.x = Math.max(...node.children.map(c => c.x)) + 150;
+  return span;
+}
+
+/* draw tree recursively */
+function drawTree(svg, node) {
+  if (node.type === 'input') {
+    const text = document.createElementNS(svgNS, 'text');
+    text.setAttribute('x', node.x - 100);
+    text.setAttribute('y', node.y + 5);
+    text.setAttribute('fill', 'var(--muted)');
+    text.textContent = `In ${node.id}: ${node.rate}`;
+    svg.appendChild(text);
+    return;
+  }
+  // draw merger
+  const rect = document.createElementNS(svgNS, 'rect');
+  rect.setAttribute('x', node.x - 20);
+  rect.setAttribute('y', node.y - 20);
+  rect.setAttribute('width', 40);
+  rect.setAttribute('height', 40);
+  rect.setAttribute('fill', 'var(--glass)');
+  rect.setAttribute('stroke', 'var(--accent)');
+  svg.appendChild(rect);
+  const mtext = document.createElementNS(svgNS, 'text');
+  mtext.setAttribute('x', node.x);
+  mtext.setAttribute('y', node.y + 5);
+  mtext.setAttribute('text-anchor', 'middle');
+  mtext.setAttribute('fill', '#fff');
+  mtext.textContent = 'M';
+  svg.appendChild(mtext);
+  // children
+  node.children.forEach(child => {
+    drawTree(svg, child);
+    const line = document.createElementNS(svgNS, 'line');
+    line.setAttribute('x1', child.x + 20);
+    line.setAttribute('y1', child.y);
+    line.setAttribute('x2', node.x - 20);
+    line.setAttribute('y2', node.y);
+    line.setAttribute('stroke', '#fff');
+    svg.appendChild(line);
+  });
+}
+
+/* draw splitter chain and outputs */
+function drawSplitterChain(svg, root, outputRates, remainder) {
+  let current_x = root.x + 50;
+  const main_y = root.y;
+  // main belt start line
+  const start_line = document.createElementNS(svgNS, 'line');
+  start_line.setAttribute('x1', root.x + 20);
+  start_line.setAttribute('y1', main_y);
+  start_line.setAttribute('x2', current_x);
+  start_line.setAttribute('y2', main_y);
+  start_line.setAttribute('stroke', '#fff');
+  svg.appendChild(start_line);
+
+  const split_gap = 150;
+  outputRates.forEach((rate, i) => {
+    // splitter
+    const splitter_x = current_x;
+    const splitter_y = main_y;
+    const rect = document.createElementNS(svgNS, 'rect');
+    rect.setAttribute('x', splitter_x - 20);
+    rect.setAttribute('y', splitter_y - 20);
+    rect.setAttribute('width', 40);
+    rect.setAttribute('height', 40);
+    rect.setAttribute('fill', 'var(--glass)');
+    rect.setAttribute('stroke', 'var(--accent)');
+    svg.appendChild(rect);
+    const stext = document.createElementNS(svgNS, 'text');
+    stext.setAttribute('x', splitter_x);
+    stext.setAttribute('y', splitter_y + 5);
+    stext.setAttribute('text-anchor', 'middle');
+    stext.setAttribute('fill', '#fff');
+    stext.textContent = 'S';
+    svg.appendChild(stext);
+    // line down to output
+    const out_y = splitter_y + 100;
+    const out_line = document.createElementNS(svgNS, 'line');
+    out_line.setAttribute('x1', splitter_x);
+    out_line.setAttribute('y1', splitter_y + 20);
+    out_line.setAttribute('x2', splitter_x);
+    out_line.setAttribute('y2', out_y - 20);
+    out_line.setAttribute('stroke', '#fff');
+    svg.appendChild(out_line);
+    // output text
+    const out_text = document.createElementNS(svgNS, 'text');
+    out_text.setAttribute('x', splitter_x - 40);
+    out_text.setAttribute('y', out_y + 5);
+    out_text.setAttribute('fill', 'var(--muted)');
+    out_text.textContent = `Out ${i+1}: ${rate}`;
+    svg.appendChild(out_text);
+    // forward line
+    current_x += split_gap;
+    const fwd_line = document.createElementNS(svgNS, 'line');
+    fwd_line.setAttribute('x1', splitter_x + 20);
+    fwd_line.setAttribute('y1', splitter_y);
+    fwd_line.setAttribute('x2', current_x);
+    fwd_line.setAttribute('y2', splitter_y);
+    fwd_line.setAttribute('stroke', '#fff');
+    svg.appendChild(fwd_line);
+  });
+  // remainder
+  if (remainder > 0) {
+    current_x += 50;
+    const rem_text = document.createElementNS(svgNS, 'text');
+    rem_text.setAttribute('x', current_x - 20);
+    rem_text.setAttribute('y', main_y + 5);
+    rem_text.setAttribute('fill', '#ffb84d');
+    rem_text.textContent = `Rem: ${remainder}`;
+    svg.appendChild(rem_text);
+    remainderTag.style.display = 'block';
+    remainderTag.textContent = `Ост: ${remainder}`;
+  } else {
+    remainderTag.style.display = 'none';
+  }
+  return current_x;
+}
+
+/* main validation & render */
+function validateAndRender() {
+  warningEl.style.display = 'none';
+  errorEl.style.display = 'none';
+  remainderTag.style.display = 'none';
+  diagramSvg.innerHTML = '';
+  const cap = Number(beltSelect.value) || 0;
+  const inputRates = Array.from(inputsContainer.querySelectorAll('input')).map(i => Number(i.value) || 0);
+  const outputRates = Array.from(outputsContainer.querySelectorAll('input')).map(i => Number(i.value) || 0);
+  const totalIn = inputRates.reduce((a, b) => a + b, 0);
+  const totalOutReq = outputRates.reduce((a, b) => a + b, 0);
+  const outCountVal = outputRates.length;
+
+  // check individual exceed cap
+  if (inputRates.some(r => r > cap) || outputRates.some(r => r > cap)) {
+    errorEl.textContent = t('errorExceedCap');
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  if (totalIn < totalOutReq) {
+    errorEl.textContent = t('errorInsufficient');
+    errorEl.style.display = 'block';
+    const errText = document.createElementNS(svgNS, 'text');
+    errText.setAttribute('x', '50%');
+    errText.setAttribute('y', '50%');
+    errText.setAttribute('text-anchor', 'middle');
+    errText.setAttribute('fill', '#ff6b6b');
+    errText.textContent = `${t('diagramInsufficient')} (${totalIn} / ${totalOutReq})`;
+    diagramSvg.appendChild(errText);
+    return;
+  }
+
+  if (outCountVal <= 0) {
+    const setText = document.createElementNS(svgNS, 'text');
+    setText.setAttribute('x', '50%');
+    setText.setAttribute('y', '50%');
+    setText.setAttribute('text-anchor', 'middle');
+    setText.setAttribute('fill', 'var(--muted)');
+    setText.textContent = t('diagramSetOut');
+    diagramSvg.appendChild(setText);
+    return;
+  }
+
+  const remainder = totalIn - totalOutReq;
+
+  // warning for remainder
+  if (remainder > 0) {
+    warningEl.textContent = `${t('remainderLabel')}: ${remainder}`;
+    warningEl.style.display = 'block';
+  }
+
+  // warning for total > cap
+  if (totalIn > cap) {
+    warningEl.textContent = (warningEl.textContent ? warningEl.textContent + ' | ' : '') + t('warningExceedTotalCap');
+    warningEl.style.display = 'block';
+  }
+
+  // build and position tree
+  const tree = buildMergerTree(inputRates);
+  if (!tree) {
+    const noInText = document.createElementNS(svgNS, 'text');
+    noInText.setAttribute('x', '50%');
+    noInText.setAttribute('y', '50%');
+    noInText.setAttribute('text-anchor', 'middle');
+    noInText.setAttribute('fill', 'var(--muted)');
+    noInText.textContent = 'No inputs';
+    diagramSvg.appendChild(noInText);
+    return;
+  }
+  const totalSpan = assignPositions(tree);
+
+  // shift y to center
+  // find min y and max y
+  function getMinMaxY(node, minMax = {min: Infinity, max: -Infinity}) {
+    if (node.y < minMax.min) minMax.min = node.y;
+    if (node.y > minMax.max) minMax.max = node.y;
+    if (node.children) node.children.forEach(c => getMinMaxY(c, minMax));
+    return minMax;
+  }
+  const mm = getMinMaxY(tree);
+  const height = mm.max - mm.min + 100;
+  const offset = 170 - (height / 2) + (mm.min * -1); // improved vertical centering
+  function shiftY(node, off) {
+    node.y += off;
+    if (node.children) node.children.forEach(c => shiftY(c, off));
+  }
+  shiftY(tree, offset);
+
+  // draw
+  drawTree(diagramSvg, tree);
+  const max_x = drawSplitterChain(diagramSvg, tree, outputRates, remainder);
+
+  // set viewBox
+  diagramSvg.setAttribute('viewBox', `0 0 ${max_x + 100} 340`);
+  diagramSvg.setAttribute('width', `${max_x + 100}`); // dynamic width for centering
+}
+
+/* ---------- events ---------- */
+function refreshAll(){
+  createList(inputsContainer, Math.max(0, Number(inCount.value) || 0));
+  createList(outputsContainer, Math.max(0, Number(outCount.value) || 0));
+  validateAndRender();
+}
+
+beltSelect.addEventListener('change', ()=>{
+  const cap = Number(beltSelect.value) || 0;
+  document.querySelectorAll('.col input').forEach(i=>{ i.value = cap; });
+  validateAndRender();
+});
+
+inCount.addEventListener('change', refreshAll);
+outCount.addEventListener('change', refreshAll);
+
+// ctrl tracking
+window.addEventListener('keydown', (e)=>{ if(e.key === 'Control') ctrlPressed = true; });
+window.addEventListener('keyup', (e)=>{ if(e.key === 'Control') { ctrlPressed = false; document.querySelectorAll('.col-input').forEach(i=> delete i.dataset.ctrlmode); } });
+
+// language toggle
+langFlag.addEventListener('click', ()=>{
+  lang = (lang==='ru') ? 'en' : 'ru';
+  langFlag.textContent = (lang==='ru') ? '🇷🇺' : '🇬🇧';
+  document.getElementById('sub-title').textContent = (lang==='ru') ? 'Распределение' : 'Distribution';
+  hint.textContent = t('hint');
+  savePNG.textContent = t('savePNG'); saveTXT.textContent = t('saveTXT'); saveSVG.textContent = t('saveSVG');
+  validateAndRender();
+});
+
+// tabs 
+tabBalance.addEventListener('click', ()=>{
+  tabBalance.classList.add('active'); tabDist.classList.remove('active');
+  document.getElementById('sub-title').textContent = (lang==='ru') ? 'Балансировка' : 'Balancer';
+  // for balancer, perhaps even distribution, but for now, same as dist, todo: implement balancer logic
+  validateAndRender(); // placeholder
+});
+tabDist.addEventListener('click', ()=>{
+  tabDist.classList.add('active'); tabBalance.classList.remove('active');
+  document.getElementById('sub-title').textContent = (lang==='ru') ? 'Распределение' : 'Distribution';
+  validateAndRender();
+});
+
+// debounce for input events
+let debounce;
+document.addEventListener('input', (e)=>{ clearTimeout(debounce); debounce = setTimeout(validateAndRender, 80); });
+
+// save buttons (mock)
+savePNG.addEventListener('click', ()=>{ alert(lang==='ru' ? 'Сохранение PNG (макет)' : 'Saving PNG (mock)'); });
+saveTXT.addEventListener('click', ()=>{ alert(lang==='ru' ? 'Сохранение TXT (макет)' : 'Saving TXT (mock)'); });
+saveSVG.addEventListener('click', ()=>{ 
+  const svgData = new XMLSerializer().serializeToString(diagramSvg);
+  const svgBlob = new Blob([svgData], {type: "image/svg+xml;charset=utf-8"});
+  const svgUrl = URL.createObjectURL(svgBlob);
+  const downloadLink = document.createElement("a");
+  downloadLink.href = svgUrl;
+  downloadLink.download = "diagram.svg";
+  document.body.appendChild(downloadLink);
+  downloadLink.click();
+  document.body.removeChild(downloadLink);
+});
+
+// initial run
+refreshAll();
+
+</script>
+
+</body>
+</html>
+
+                                                                                                                                                                                                           
+    @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%%@%@@@@@%@@@@@%@@%%@@@@@@@@@@@@@@%%@@%%@%%%@%@@@@@@@@@@@@@@%%@@@@@@%@@@@@@@@%%%%%%@@@@@@@@@@@@@@@@%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  @@@@%*****+++*@@@@@@@@@%++*++++++++++++++++++++++++++++++#@@@@+++++++++#@@@@+++++++=++++++++==*#+++++++#@@@@@@@@@*=+++++++=+++++==+=++++++=+++++++++++++++++@@@@%+++++++++++++++**+++++@@@@@@@#######@@@@
+@@@%...............@@@@@@..................................*@-..............*@..................@.........@@%@@@#................................................@%.......................@@@@@#-%@#=-+@@@@
+@@@.................@@@@%..................................#:................%..................%.........*@@@@%..................................................@.......................:@@@@=-=@@%-@@@@ 
+@@%.................@@@@:..................................#.................*.................#:..........@@@@*..................................................@.................-......@@@#@--#@%@@@@  
+@@@......*@@@.......@@@@...........%@@@@@@@%*=-.@@@@%......%.......@@@%......*.......@@@@@@@@@@@...........@@@@*......%@@@......-@@@@@@@#+-:@@@@@......+@@@.......@......=@@@:......@.......@%@@===@%@@@@  
+@@%......#@@@.......@@@*...........:@@@@@.......@@@@%......%.......@%%%......*.......@@@@%@%%%%=...........=@@@*......%@%@......-@@@@-......@@%%@......*@@@.......@......+@@@-......@@.......@%@+==+@@@    
+@@@......#@@@+=====+@@@.............@@@@@:......@@@@%......%.......@@@@++++++@.......@@@@@%%@@@.............@@@*......#%%@++++++#@@@@-......@@@@@......+@@@.......@......+@@@-......@@#......##@%=-@@@@    
+@@@.............+@@@@@@.............+@@@@:......@@@@%......%..............#@@@.......@@@%@@@@@#.............#@@*......#@%@%@@@@@%@@@@:......@@@@@......*@@@.......@......+@@#.......@@@.......@@@*@@@@     
+@@@................@@@-......@.......@@@@:......@@@@%......**...............#@.......@.......#:......@.......@@*......%%@@%@%%%@@@@@@-......@@@@@......+@@@.......@......+%........%@@@@.......#@%@@@@     
+@@@@...............-@@.......@-......%@@@:......@@@@%......*@*...............@.......@.......@......:@:......@@*......#%%%%%%%%%%%@@@:......@@%@@......+%@@.......@......+=.......#@@@@@@......++@@@@      
+%@@@@@=.............@+......+@@......:@%@:......@%@%%......*@@@%:............*.......#......=+......#%#......=%*......###%###%%%%%%%@:......%%%@@......+%%@.......%......+.........@@@%@@-......@@@@       
+@@%::.:::%@@@.......@.......@.........@@@:......@@@@@......%-...::-@@@@......#.......#-----:@.......@.........@#......%@@@......=@@@@-......@@@@@......*@@@.......@......+::.......=@@@@@-......@@@        
+@@@......#@@@.......@......-*.........+@@-......@@@@@......%:......@@@%......#:......@@@@@@@#......+=.........##......%@@@......=@@@@-......@@@@@......*@@@:......@......+@@@.......@@@@@-......@@@        
+@@@.::...#@@@.......=....:.@...........@@-......@@@@@......%:.....:@@@%......#:......@%@@@@@:......%...........%.::...%%%@.....:=@@@@-......@@@@@......*@@@:......@......+@@@=......@@@@@=...:..@@@        
+@@@:::--:::::::::::-::::::--.....:::::.%@-:::::.@@@@@:::::.%-::::::::::::::::#-:::::.@@@@@@@.:::::=:....:::::::#::::::::::::::::=@@@@=---:-.@@@@@:-:::::::-::---:.@.::::.*@@@=:::::.@@@@@=:::::.@@@        
+@@@:----------:--:---:---:#@@@@@@:------@----:-.@@@@@:----:%-------:--------:#------.@%@@@@=:--:-:%@@@@@@:-::---::-------------:@@@@@=------@@@@@:=-------=------:@:----:*@@@=-:::-.@@@@@=-:::-.@@@        
+@@@=========-===--=--=--=:@@@@@@@-====+=@+++===:@@@@@======@========-=-======#===--=:@@@@@@--==---@@@@@@@-==========-==-======-@@@@@@+++===-@@@@@@=-====+=+=+=+=+-@=====-*@@@+===-=:@@@@@+--===-@@@        
+@@@%%%%%%%%%%%%%%%%%%%%%%@@@@@@@@@%%%%%%@@%%%%%%@@@@@%%%%%%@@%%%%%%%%%%%%%%%%@@%%%%%%@@@@@@%%%%%%@@@@@@@@@%%%%%%%%%%%%%%%%%%@@@@@@@@@@%%%%%%@@@@@@@@@%%%%%%%%%%%%%@%%%%%%@@@@@%%%%%%@@@@@@%%%%%%@@@        
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%@@%@%%%%@@%%%@@@%%%%@%%@@@@@%%%%@@%%@@@@@@@@@@%%%@@%%%@@@%@@%%%@%@%@@@@@@@%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@        
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@         
+                                                                                                           
+88                       88                          					 88                                                   
+88                       88    ,d                    					 88                                                   
+88                       88    88                    					 88                                                   
+88,dPPYba,    ,adPPYba,  88  MM88MMM     					8b,dPPYba,   88  ,adPPYYba,  8b,dPPYba,    8b,dPPYba,    ,adPPYba,  8b,dPPYba,  
+88P'    "8a  a8P_____88  88    88        					88P'    "8a  88  ""     `Y8  88P'   `"8a   88P'   `"8a  a8P_____88  88P'   "Y8  
+88       d8  8PP"""""""  88    88        					88       d8  88  ,adPPPPP88  88       88   88       88  8PP"""""""  88          
+88b,   ,a8"  "8b,   ,aa  88    88,       					88b,   ,a8"  88  88,    ,88  88       88   88       88  "8b,   ,aa  88          
+8Y"Ybbd8"'    `"Ybbd8"'  88    "Y888     					88`YbbdP"'   88  `"8bbdP"Y8  88       88   88       88   `"Ybbd8"'  88          
+															88                                                                
+															88                                                                
